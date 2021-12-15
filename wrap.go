@@ -126,14 +126,15 @@ func advance(str string, n int) (string, int) {
 			curr += skip(str[curr:], isNL)
 			break
 		}
-		if isBlank(r) || isPunct(r) || r == utf8.RuneError {
+		if isDelimiter(r) {
 			if isBlank(r) {
 				curr += skip(str[curr:], isBlank)
 			}
-			if z := ws.Len(); z == n || (z > n && z-n < DefaultThreshold) {
-				break
-			} else if z > n && z-n > DefaultThreshold {
-				curr = prev
+			if z, ok := canBreak(ws.Len(), prev, n); ok {
+				curr = z
+				if isPunct(r) {
+					ws.WriteRune(r)
+				}
 				break
 			}
 			prev = curr
@@ -148,6 +149,19 @@ func advance(str string, n int) (string, int) {
 		str = str[:curr]
 	}
 	return str, curr
+}
+
+func canBreak(curr, prev, limit int) (int, bool) {
+	if curr == limit {
+		return curr, true
+	}
+	if curr > limit && curr-limit < DefaultThreshold {
+		return curr, true
+	}
+	if curr > limit && curr-limit > DefaultThreshold {
+		return prev, true
+	}
+	return 0, false
 }
 
 func skip(str string, fn func(rune) bool) int {
@@ -173,6 +187,10 @@ const (
 	colon     = ':'
 	semicolon = ';'
 )
+
+func isDelimiter(r rune) bool {
+	return isPunct(r) || isBlank(r) || r == utf8.RuneError
+}
 
 func isPunct(r rune) bool {
 	return r == comma || r == dot || r == question || r == bang || r == semicolon || r == colon
