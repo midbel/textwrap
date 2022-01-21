@@ -11,60 +11,6 @@ const (
 	DefaultThreshold = 2
 )
 
-// type WrapperOption func(*Wrapper)
-//
-// type SplitFunc func(rune) bool
-//
-// func ReplaceTab() WrapperOption {
-// 	return func(w *Wrapper) {
-// 		w.replaceTab = true
-// 	}
-// }
-//
-// func MergeBlanks() WrapperOption {
-// 	return func(w *Wrapper) {
-// 		w.mergeBlank = true
-// 	}
-// }
-//
-// func MergeNL() WrapperOption {
-// 	return func(w *Wrapper) {
-// 		w.mergeNL = true
-// 	}
-// }
-//
-// func Split(split SplitFunc) WrapperOption {
-// 	return func(w *Wrapper) {
-//     if split == nil {
-//       return
-//     }
-// 		w.split = split
-// 	}
-// }
-//
-// type Wrapper struct {
-// 	replaceTab bool
-// 	mergeBlank bool
-// 	mergeNL    bool
-// 	split      SplitFunc
-// 	size       int
-// }
-//
-// func New(size int, options ...WrapperOption) Wrapper {
-// 	w := Wrapper{
-//     size: size,
-//     split: isBlank,
-//   }
-// 	for _, o := range options {
-// 		o(&w)
-// 	}
-// 	return &w
-// }
-//
-// func (w Wrapper) Wrap(str string) string {
-// 	return str
-// }
-
 func Shorten(str string, n int) string {
 	if n <= 0 || n >= len(str) {
 		return str
@@ -72,14 +18,6 @@ func Shorten(str string, n int) string {
 	str, _ = advance(str, n)
 	return fmt.Sprintf("%s...", str)
 }
-
-// func Indent(str string) string {
-//   return str
-// }
-//
-// func Dedent(str string) string {
-//   return str
-// }
 
 func Wrap(str string) string {
 	return WrapN(str, DefaultLength)
