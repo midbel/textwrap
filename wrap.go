@@ -6,10 +6,13 @@ import (
 	"unicode/utf8"
 )
 
-const (
-	DefaultLength    = 70
-	DefaultThreshold = 2
-)
+const DefaultLength = 70
+
+var Default Wrapper
+
+func init() {
+	Default = New(DefaultLength)
+}
 
 func Shorten(str string, n int) string {
 	if n <= 0 || n >= len(str) {
@@ -19,11 +22,31 @@ func Shorten(str string, n int) string {
 	return fmt.Sprintf("%s...", str)
 }
 
+type Wrapper struct {
+	limit int
+}
+
+func New(limit int) Wrapper {
+	return Wrapper{
+		limit: limit,
+	}
+}
+
 func Wrap(str string) string {
-	return WrapN(str, DefaultLength)
+	return Default.Wrap(str)
 }
 
 func WrapN(str string, limit int) string {
+	d := Default
+	d.limit = limit
+	return d.Wrap(str)
+}
+
+func (w Wrapper) Wrap(str string) string {
+	return wrapN(str, w.limit)
+}
+
+func wrapN(str string, limit int) string {
 	if limit <= 0 {
 		return str
 	}
