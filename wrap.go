@@ -11,7 +11,7 @@ const DefaultLength = 70
 var Default Wrapper
 
 func init() {
-	Default = New(DefaultLength)
+	Default = New()
 }
 
 func Shorten(str string, n int) string {
@@ -22,14 +22,43 @@ func Shorten(str string, n int) string {
 	return fmt.Sprintf("%s...", str)
 }
 
-type Wrapper struct {
-	limit int
+type WrapOption func(*Wrapper)
+
+func WithLength(limit int) WrapOption {
+	return func(w *Wrapper) {
+		if limit <= 0 {
+			return
+		}
+		w.limit = limit
+	}
 }
 
-func New(limit int) Wrapper {
-	return Wrapper{
-		limit: limit,
+func MergeBlanks() WrapOption {
+	return func(w *Wrapper) {
+		w.mergeBlanks = true
 	}
+}
+
+func MergeNL() WrapOption {
+	return func(w *Wrapper) {
+		w.mergeLines = true
+	}
+}
+
+type Wrapper struct {
+	limit int
+	mergeBlanks bool
+	mergeLines  bool
+}
+
+func New(options ...WrapOption) Wrapper {
+	w := Wrapper{
+		limit: DefaultLength,
+	}
+	for _, o := range options {
+		o(&w)
+	}
+	return w
 }
 
 func Wrap(str string) string {
@@ -43,19 +72,19 @@ func WrapN(str string, limit int) string {
 }
 
 func (w Wrapper) Wrap(str string) string {
-	return wrapN(str, w.limit)
-}
-
-func wrapN(str string, limit int) string {
-	if limit <= 0 {
+	if w.limit <= 0 || len(str) <= w.limit {
 		return str
 	}
+	return w.wrapN(str)
+}
+
+func (w Wrapper) wrapN(str string) string {
 	var (
 		ws  strings.Builder
 		ptr int
 	)
 	for i := 0; ptr < len(str); i++ {
-		next, x, addnl := advance(str[ptr:], limit)
+		next, x, addnl := advance(str[ptr:], w.limit)
 		if i > 0 && ptr < len(str) && x > 1 {
 			ws.WriteRune(nl)
 		}
