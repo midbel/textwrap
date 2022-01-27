@@ -45,8 +45,15 @@ func MergeNL() WrapOption {
 	}
 }
 
+func WithIndent(indent string) WrapOption {
+	return func(w *Wrapper) {
+		w.indent = indent
+	}
+}
+
 type Wrapper struct {
 	limit int
+	indent string
 	mergeBlanks bool
 	mergeLines  bool
 }
@@ -89,6 +96,7 @@ func (w Wrapper) wrapN(str string) string {
 			ws.WriteRune(nl)
 		}
 		ptr += x
+		ws.WriteString(w.indent)
 		ws.WriteString(next)
 		if addnl && len(next) > 0 {
 			ws.WriteRune(nl)
