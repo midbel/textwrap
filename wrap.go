@@ -33,6 +33,12 @@ func WithLength(limit int) WrapOption {
 	}
 }
 
+func WithCarriage() WrapOption {
+	return func(w *Wrapper) {
+		w.carriage = true
+	}
+}
+
 func MergeBlanks() WrapOption {
 	return func(w *Wrapper) {
 		w.mergeBlanks = true
@@ -56,6 +62,7 @@ type Wrapper struct {
 	indent string
 	mergeBlanks bool
 	mergeLines  bool
+	carriage bool
 }
 
 func New(options ...WrapOption) Wrapper {
@@ -93,12 +100,18 @@ func (w Wrapper) wrapN(str string) string {
 	for i := 0; ptr < len(str); i++ {
 		next, x, addnl := advance(str[ptr:], w.limit)
 		if i > 0 && ptr < len(str) && x > 1 {
+			if w.carriage {
+				ws.WriteRune(cr)
+			}
 			ws.WriteRune(nl)
 		}
 		ptr += x
 		ws.WriteString(w.indent)
 		ws.WriteString(next)
 		if addnl && len(next) > 0 {
+			if w.carriage {
+				ws.WriteRune(cr)
+			}
 			ws.WriteRune(nl)
 		}
 		if x == 0 || ptr >= len(str) {
@@ -201,6 +214,7 @@ const (
 	space     = ' '
 	tab       = '\t'
 	nl        = '\n'
+	cr        = '\r'
 	comma     = ','
 	dot       = '.'
 	question  = '?'
