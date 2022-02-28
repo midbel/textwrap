@@ -58,11 +58,11 @@ func WithIndent(indent string) WrapOption {
 }
 
 type Wrapper struct {
-	limit int
-	indent string
+	limit       int
+	indent      string
 	mergeBlanks bool
 	mergeLines  bool
-	carriage bool
+	carriage    bool
 }
 
 func New(options ...WrapOption) Wrapper {
@@ -130,7 +130,7 @@ func advance(str string, limit int) (string, int, bool) {
 		curr int
 		step int
 		last rune
-		ws strings.Builder
+		ws   strings.Builder
 	)
 	curr += skip(str[curr:], isBlank)
 	for {
@@ -141,7 +141,7 @@ func advance(str string, limit int) (string, int, bool) {
 		curr += step
 		if isNL(last) {
 			step = skip(str[curr:], isNL)
-			return ws.String(), curr+step, step > 0 && len(str[curr+step:]) > 0
+			return ws.String(), curr + step, step > 0 && len(str[curr+step:]) > 0
 		}
 		ws.WriteRune(last)
 		if n, ok := canBreak(curr, prev, limit); ok {
