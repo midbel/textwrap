@@ -78,10 +78,10 @@ project such as number of remaining todos, line of codes and others.`,
 			t.Errorf("nothing has been wrapped!")
 			continue
 		}
-		want := d.Len + textwrap.DefaultThreshold
+		want := d.Len + textwrap.DefaultLength
 		for scan.Scan() {
 			str := scan.Text()
-			if len(str) > d.Len+textwrap.DefaultThreshold {
+			if len(str) > d.Len+textwrap.DefaultLength {
 				t.Errorf("%s: longer than expected! want %d, got %d", str, want, len(str))
 				break
 			}

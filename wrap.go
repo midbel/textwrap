@@ -22,56 +22,25 @@ func Shorten(str string, n int) string {
 	return fmt.Sprintf("%s...", str)
 }
 
-type WrapOption func(*Wrapper)
-
-func WithLength(limit int) WrapOption {
-	return func(w *Wrapper) {
-		if limit <= 0 {
-			return
-		}
-		w.limit = limit
-	}
-}
-
-func WithCarriage() WrapOption {
-	return func(w *Wrapper) {
-		w.carriage = true
-	}
-}
-
-func MergeBlanks() WrapOption {
-	return func(w *Wrapper) {
-		w.mergeBlanks = true
-	}
-}
-
-func MergeNL() WrapOption {
-	return func(w *Wrapper) {
-		w.mergeLines = true
-	}
-}
-
-func WithIndent(indent string) WrapOption {
-	return func(w *Wrapper) {
-		w.indent = indent
-	}
-}
-
 type Wrapper struct {
 	limit       int
-	indent      string
-	mergeBlanks bool
-	mergeLines  bool
-	carriage    bool
+	Indent      string
+	MergeBlanks bool
+	MergeLines  bool
+	Carriage    bool
 }
 
-func New(options ...WrapOption) Wrapper {
-	w := Wrapper{
-		limit: DefaultLength,
+func NewLimit(n int) (Wrapper, error) {
+	var w Wrapper
+	if n <= 0 {
+		return w, fmt.Errorf("limit should be positive")
 	}
-	for _, o := range options {
-		o(&w)
-	}
+	w.limit = n
+	return w, nil
+}
+
+func New() Wrapper {
+	w, _ := NewLimit(DefaultLength)
 	return w
 }
 
@@ -100,16 +69,16 @@ func (w Wrapper) wrapN(str string) string {
 	for i := 0; ptr < len(str); i++ {
 		next, x, addnl := advance(str[ptr:], w.limit)
 		if i > 0 && ptr < len(str) && x > 1 {
-			if w.carriage {
+			if w.Carriage {
 				ws.WriteRune(cr)
 			}
 			ws.WriteRune(nl)
 		}
 		ptr += x
-		ws.WriteString(w.indent)
+		ws.WriteString(w.Indent)
 		ws.WriteString(next)
 		if addnl && len(next) > 0 {
-			if w.carriage {
+			if w.Carriage {
 				ws.WriteRune(cr)
 			}
 			ws.WriteRune(nl)
