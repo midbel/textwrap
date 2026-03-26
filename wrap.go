@@ -68,6 +68,9 @@ func (w Wrapper) wrapN(str string) string {
 	)
 	for i := 0; ptr < len(str); i++ {
 		next, x, addnl := advance(str[ptr:], w.limit)
+		if x == 0 {
+			break
+		}
 		if i > 0 && ptr < len(str) && x > 1 {
 			if w.Carriage {
 				ws.WriteRune(cr)
@@ -83,7 +86,7 @@ func (w Wrapper) wrapN(str string) string {
 			}
 			ws.WriteRune(nl)
 		}
-		if x == 0 || ptr >= len(str) {
+		if ptr >= len(str) {
 			break
 		}
 	}
@@ -119,10 +122,8 @@ func advance(str string, limit int) (string, int, bool) {
 		}
 		prev = curr
 	}
-	if str = ws.String(); len(str) > curr {
-		str = str[:curr]
-	}
-	return str, curr, false
+	str = ws.String() 
+	return str, len(str), false
 }
 
 func peek(str string, ws *strings.Builder) (rune, int) {
