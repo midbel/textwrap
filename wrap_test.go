@@ -38,7 +38,7 @@ func TestShorten(t *testing.T) {
 	}
 }
 
-func TestWrapN(t *testing.T) {
+func TestWrap(t *testing.T) {
 	data := []struct {
 		Input string
 		Len   int
@@ -71,7 +71,7 @@ project such as number of remaining todos, line of codes and others.`,
 	}
 	for _, d := range data {
 		var (
-			got  = textwrap.WrapN(d.Input, d.Len)
+			got  = textwrap.Wrap(d.Input, d.Len)
 			scan = bufio.NewScanner(strings.NewReader(got))
 		)
 		if len(got) == 0 && len(d.Input) > 0 {

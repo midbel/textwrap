@@ -2,210 +2,174 @@ package textwrap
 
 import (
 	"fmt"
+	"iter"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
 
 const DefaultLength = 70
 
-var Default Wrapper
-
-func init() {
-	Default = New()
-}
-
-func Shorten(str string, n int) string {
-	if n <= 0 || n >= len(str) {
+func Shorten(str string, limit int) string {
+	if limit <= 0 || limit >= len(str) {
 		return str
 	}
-	str, _, _ = advance(str, n)
-	return fmt.Sprintf("%s...", str)
+	next, stop := iter.Pull(Lines(str, limit))
+	defer stop()
+
+	str, _ = next()
+	return fmt.Sprintf("%s...", strings.TrimSpace(str))
 }
 
-type Wrapper struct {
-	limit       int
-	Indent      string
-	MergeBlanks bool
-	MergeLines  bool
-	Carriage    bool
-}
-
-func NewLimit(n int) (Wrapper, error) {
-	var w Wrapper
-	if n <= 0 {
-		return w, fmt.Errorf("limit should be positive")
+func Split(str string, limit int) []string {
+	if limit <= 0 || limit >= len(str) {
+		return []string{str}
 	}
-	w.limit = n
-	return w, nil
+	return slices.Collect(wrap(str, limit))
 }
 
-func New() Wrapper {
-	w, _ := NewLimit(DefaultLength)
-	return w
-}
-
-func Wrap(str string) string {
-	return Default.Wrap(str)
-}
-
-func WrapN(str string, limit int) string {
-	d := Default
-	d.limit = limit
-	return d.Wrap(str)
-}
-
-func (w Wrapper) Wrap(str string) string {
-	if w.limit <= 0 || len(str) <= w.limit {
+func Wrap(str string, limit int) string {
+	if limit <= 0 || limit >= len(str) {
 		return str
 	}
-	return w.wrapN(str)
+	var (
+		out strings.Builder
+		lino int
+	)
+	for str := range Lines(str, limit) {
+		if lino > 0 {
+			out.WriteString("\n")
+		}
+		out.WriteString(str)
+	}
+	return out.String()
 }
 
-func (w Wrapper) wrapN(str string) string {
-	var (
-		ws  strings.Builder
-		ptr int
-	)
-	for i := 0; ptr < len(str); i++ {
-		next, x, addnl := advance(str[ptr:], w.limit)
-		if x == 0 {
-			break
+func Lines(str string, limit int) iter.Seq[string] {
+	return wrap(str, limit)
+}
+
+func wrap(str string, limit int) iter.Seq[string] {
+	it := func(yield func(string) bool) {
+		if len(str) < limit {
+			yield(str)
+			return
 		}
-		if i > 0 && ptr < len(str) && x > 1 {
-			if w.Carriage {
-				ws.WriteRune(cr)
+		var ptr int
+		for ptr < len(str) {
+			ptr = skipCollapsible(str, ptr)
+			var (
+				cs        int
+				lastChar  rune
+				done      bool
+				prevDelim = -1
+			)
+			// consumes up to limit characters
+			for cs < limit {
+				if ptr+cs >= len(str) {
+					done = true
+					break
+				}
+				r, z := utf8.DecodeRuneInString(str[ptr+cs:])
+				cs += z
+				lastChar = r
+				if isDelimiter(lastChar) {
+					prevDelim = ptr + cs
+					dot := consumeDot(str, prevDelim)
+					prevDelim += dot
+					cs += dot
+				}
 			}
-			ws.WriteRune(nl)
-		}
-		ptr += x
-		ws.WriteString(w.Indent)
-		ws.WriteString(next)
-		if addnl && len(next) > 0 {
-			if w.Carriage {
-				ws.WriteRune(cr)
-			}
-			ws.WriteRune(nl)
-		}
-		if ptr >= len(str) {
-			break
-		}
-	}
-	return ws.String()
-}
-
-func advance(str string, limit int) (string, int, bool) {
-	if len(str) == 0 {
-		return "", 0, false
-	}
-	var (
-		prev int
-		curr int
-		step int
-		last rune
-		ws   strings.Builder
-	)
-	curr += skip(str[curr:], isBlank)
-	for {
-		last, step = peek(str[curr:], &ws)
-		if last == utf8.RuneError {
-			return ws.String(), curr, false
-		}
-		curr += step
-		if isNL(last) {
-			step = skip(str[curr:], isNL)
-			return ws.String(), curr + step, step > 0 && len(str[curr+step:]) > 0
-		}
-		ws.WriteRune(last)
-		if n, ok := canBreak(curr, prev, limit); ok {
-			curr = n
-			break
-		}
-		prev = curr
-	}
-	str = ws.String() 
-	return str, len(str), false
-}
-
-func peek(str string, ws *strings.Builder) (rune, int) {
-	var (
-		curr int
-		size int
-		last rune
-	)
-	for {
-		last, size = next(str[curr:])
-		curr += size
-		if last == utf8.RuneError {
-			return last, curr
-		}
-		if last == backslash {
-			r, x := next(str[curr:])
-			if isNL(r) {
-				curr += x
+			// break on delim
+			if prevDelim == ptr+cs && isDelimiter(lastChar) {
+				if isCollapsible(lastChar) {
+					cs -= utf8.RuneLen(lastChar)
+				}
+				if !yield(str[ptr : ptr+cs]) {
+					return
+				}
+				ptr += cs
 				continue
 			}
+			nextDelim := ptr + cs
+			if !done {
+				nextDelim = nextDelimiter(str, nextDelim)
+			}
+			next := ptr + cs
+			switch {
+			case prevDelim < 0:
+				next = nextDelim
+			case next-prevDelim <= nextDelim-next:
+				next = prevDelim
+			default:
+				next = nextDelim
+			}
+			if !yield(str[ptr:next]) {
+				return
+			}
+			ptr = next
 		}
-		if isDelimiter(last) {
+	}
+	return it
+}
+
+func skipCollapsible(str string, ptr int) int {
+	// skip collapsible characters
+	for ptr < len(str) {
+		r, z := utf8.DecodeRuneInString(str[ptr:])
+		if !isCollapsible(r) {
 			break
 		}
-		ws.WriteRune(last)
+		ptr += z
 	}
-	return last, curr
+	return ptr
 }
 
-func next(str string) (rune, int) {
-	return utf8.DecodeRuneInString(str)
-}
-
-func canBreak(curr, prev, limit int) (int, bool) {
-	if curr < limit {
-		return 0, false
-	}
-	delta := limit - prev
-	if diff := curr - limit; delta < diff {
-		curr = prev
-	}
-	return curr, true
-}
-
-func skip(str string, fn func(rune) bool) int {
-	var n int
-	for {
-		r, z := utf8.DecodeRuneInString(str[n:])
-		if !fn(r) {
+func nextDelimiter(str string, ptr int) int {
+	var read int
+	for ptr+read < len(str) {
+		r, z := utf8.DecodeRuneInString(str[ptr+read:])
+		read += z
+		if r == utf8.RuneError || isDelimiter(r) {
 			break
 		}
-		n += z
 	}
-	return n
+	return ptr + read
 }
 
-const (
-	space     = ' '
-	tab       = '\t'
-	nl        = '\n'
-	cr        = '\r'
-	comma     = ','
-	dot       = '.'
-	question  = '?'
-	bang      = '!'
-	colon     = ':'
-	semicolon = ';'
-	backslash = '\\'
-)
+func consumeDot(str string, ptr int) int {
+	var read int
+	for ptr+read < len(str) {
+		r, z := utf8.DecodeRuneInString(str[ptr+read:])
+		if !isDot(r) {
+			break
+		}
+		read += z
+	}
+	return read
+}
+
+func isDot(r rune) bool {
+	return r == '.'
+}
+
+func isCollapsible(r rune) bool {
+	switch r {
+	case ' ', '\n', '\r', '\t':
+		return true
+	default:
+		return false
+	}
+}
 
 func isDelimiter(r rune) bool {
-	return isNL(r) || isPunct(r) || isBlank(r) || r == utf8.RuneError
-}
-
-func isPunct(r rune) bool {
-	return r == comma || r == dot || r == question || r == bang || r == semicolon || r == colon
-}
-
-func isBlank(r rune) bool {
-	return r == space || r == tab
-}
-
-func isNL(r rune) bool {
-	return r == nl
+	if isCollapsible(r) {
+		return true
+	}
+	switch r {
+	case ';', ',', '.', '!', '?', ':', '(', ')', '[', ']', '{', '}':
+		return true
+	default:
+		return false
+	}
 }
