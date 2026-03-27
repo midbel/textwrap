@@ -41,6 +41,7 @@ func Wrap(str string, limit int) string {
 			out.WriteString("\n")
 		}
 		out.WriteString(str)
+		lino++
 	}
 	return out.String()
 }
