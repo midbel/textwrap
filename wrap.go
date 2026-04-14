@@ -79,11 +79,14 @@ func wrap(str string, limit int) iter.Seq[string] {
 					dot := consumeDot(str, prevDelim)
 					prevDelim += dot
 					cs += dot
+					if isNL(lastChar) {
+						break
+					}
 				}
 			}
 			// break on delim
 			if prevDelim == ptr+cs && isDelimiter(lastChar) {
-				if isCollapsible(lastChar) {
+				if isCollapsible(lastChar) && !isNL(lastChar) {
 					cs -= utf8.RuneLen(lastChar)
 				}
 				if !yield(str[ptr : ptr+cs]) {
@@ -154,9 +157,13 @@ func isDot(r rune) bool {
 	return r == '.'
 }
 
+func isNL(r rune) bool {
+	return r == '\n' || r == '\r'
+}
+
 func isCollapsible(r rune) bool {
 	switch r {
-	case ' ', '\n', '\r', '\t':
+	case '\n', '\r', ' ', '\t':
 		return true
 	default:
 		return false
@@ -164,7 +171,7 @@ func isCollapsible(r rune) bool {
 }
 
 func isDelimiter(r rune) bool {
-	if isCollapsible(r) {
+	if isCollapsible(r) || isNL(r) {
 		return true
 	}
 	switch r {

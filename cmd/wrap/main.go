@@ -16,6 +16,6 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	str := textwrap.WrapN(string(b), *limit)
+	str := textwrap.Wrap(string(b), *limit)
 	fmt.Println(str)
 }
