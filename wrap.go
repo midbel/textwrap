@@ -33,7 +33,7 @@ func Wrap(str string, limit int) string {
 		return str
 	}
 	var (
-		out strings.Builder
+		out  strings.Builder
 		lino int
 	)
 	for str := range Lines(str, limit) {
@@ -86,13 +86,16 @@ func wrap(str string, limit int) iter.Seq[string] {
 			}
 			// break on delim
 			if prevDelim == ptr+cs && isDelimiter(lastChar) {
-				if isCollapsible(lastChar) && !isNL(lastChar) {
+				if isCollapsible(lastChar) || isNL(lastChar) {
 					cs -= utf8.RuneLen(lastChar)
 				}
 				if !yield(str[ptr : ptr+cs]) {
 					return
 				}
 				ptr += cs
+				if isNL(lastChar) {
+					ptr += utf8.RuneLen(lastChar)
+				}
 				continue
 			}
 			nextDelim := ptr + cs
@@ -163,7 +166,7 @@ func isNL(r rune) bool {
 
 func isCollapsible(r rune) bool {
 	switch r {
-	case '\n', '\r', ' ', '\t':
+	case ' ', '\t':
 		return true
 	default:
 		return false
